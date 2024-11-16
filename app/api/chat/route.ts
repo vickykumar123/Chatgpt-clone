@@ -1,37 +1,53 @@
-import {NextRequest} from "next/server";
-import {openai} from "@ai-sdk/openai";
-import {CoreMessage, streamText} from "ai";
+import {NextRequest, NextResponse} from "next/server";
 import {handleError} from "@/lib/apiErrorHandler";
+import supabase from "@/lib/supabaseClient";
+import { USER_ID } from "@/contants";
 
-interface Messages {
-  messages: CoreMessage[];
+
+export async function GET(){
+  try {
+    const { data, error } = await supabase.rpc('get_chats_by_user', {
+      user_id_input: USER_ID,
+  });
+
+  if(error){
+    throw error
+  }
+
+  return NextResponse.json(data)
+  } catch (error) {
+    return handleError({
+      customErrorMessage:"[UNABLE_TO_GET_USER_CHAT]",
+      error:error as Error
+    })
+  }
 }
 
-const chatModel = process.env.OPENAI_CHAT_MODEL;
-export const maxDuration = 30;
+
 
 export async function POST(request: NextRequest) {
   try {
-    if (!chatModel) {
-      throw new Error("Chat model is not configured");
+    const {chatTitle} = await request.json()
+    if(!chatTitle){
+      return handleError({
+        customErrorMessage:"chatTitle is required",
+        statusCode:400
+      })
     }
-    
-    const {messages}: Messages = await request.json();
-    console.log(messages)
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      throw new Error("Invalid 'messages' format or missing");
-    }
+    const { data, error } = await supabase.rpc('create_chat', {
+      user_id_input: USER_ID,
+      chat_title_input: chatTitle,
+  });
 
+  if(error){
+    throw error
+  }
 
-    const result = await streamText({
-      model: openai(chatModel),
-      messages: messages,
-    });
+return NextResponse.json({chatId:data})
 
-    return result.toDataStreamResponse();
   } catch (error) {
     return handleError({
-      customErrorMessage: "[CHATBOT_ERROR]",
+      customErrorMessage: "[CHAT_CREATION_ERROR]",
       error: error as Error,
     });
   }
