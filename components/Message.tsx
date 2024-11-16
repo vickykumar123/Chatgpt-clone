@@ -1,60 +1,79 @@
+import {useEffect, useRef, useState} from "react";
 import {SiOpenai} from "react-icons/si";
 import {HiUser} from "react-icons/hi";
-import {TbCursorText} from "react-icons/tb";
+import {BiEdit, BiSave} from "react-icons/bi";
 import {Message as MessageType} from "ai";
 
 interface MessageProps {
   message: MessageType;
-  isLoading: boolean;
+  onUpdate: (id: string, newContent: string) => void;
 }
 
-const Message = ({message}: MessageProps) => {
-  const {role, content: text} = message;
-
+const Message = ({message, onUpdate}: MessageProps) => {
+  const {role, content: text, id} = message;
   const isUser = role === "user";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(text);
+  const editRef = useRef<HTMLDivElement>(null);
+  const handleSave = () => {
+    onUpdate(id, editText);
+    setIsEditing(false);
+  };
+
+  const handleClickOutside = (event: MouseEvent) => {
+    if (editRef.current && !editRef.current.contains(event.target as Node)) {
+      setIsEditing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEditing) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditing]);
 
   return (
     <div
       className={`group w-full text-gray-800 dark:text-gray-100 border-b border-black/10 dark:border-gray-900/50 ${
         isUser ? "dark:bg-gray-800" : "bg-gray-50 dark:bg-[#444654]"
       }`}
+      ref={editRef}
     >
-      <div className="text-base gap-4 md:gap-6 md:max-w-2xl lg:max-w-xl xl:max-w-3xl flex lg:px-0 m-auto w-full">
-        <div className="flex flex-row gap-4 md:gap-6 md:max-w-2xl lg:max-w-xl xl:max-w-3xl p-4 md:py-6 lg:px-0 m-auto w-full">
-          <div className="w-8 flex flex-col relative items-end">
-            <div className="relative h-7 w-7 p-1 rounded-sm text-white flex items-center justify-center bg-black/75 text-opacity-100r">
-              {isUser ? (
-                <HiUser className="h-4 w-4 text-white" />
-              ) : (
-                <SiOpenai className="h-4 w-4 text-white" />
-              )}
-            </div>
-            <div className="text-xs flex items-center justify-center gap-1 absolute left-0 top-2 -ml-4 -translate-x-full group-hover:visible !invisible">
-              <button
-                disabled
-                className="text-gray-300 dark:text-gray-400"
-              ></button>
-              <span className="flex-grow flex-shrink-0">1 / 1</span>
-              <button
-                disabled
-                className="text-gray-300 dark:text-gray-400"
-              ></button>
-            </div>
-          </div>
-          <div className="relative flex w-[calc(100%-50px)] flex-col gap-1 md:gap-3 lg:w-[calc(100%-115px)]">
-            <div className="flex flex-grow flex-col gap-3">
-              <div className="min-h-20 flex flex-col items-start gap-4 whitespace-pre-wrap break-words">
-                <div className="markdown prose w-full break-words dark:prose-invert dark">
-                  {!isUser && text === null ? (
-                    <TbCursorText className="h-6 w-6 animate-pulse" />
-                  ) : (
-                    <p>{text}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="flex items-center p-4 gap-4">
+        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-black/75 text-white">
+          {isUser ? <HiUser /> : <SiOpenai />}
         </div>
+        <div className="flex-1">
+          {isEditing ? (
+            <input
+              className="w-full p-2 border rounded-md text-black"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+          ) : (
+            <p>{text}</p>
+          )}
+        </div>
+        {isUser && (
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <button onClick={handleSave}>
+                <BiSave className="text-green-500" />
+              </button>
+            ) : (
+              <button onClick={() => setIsEditing(true)}>
+                <BiEdit className="text-gray-500" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

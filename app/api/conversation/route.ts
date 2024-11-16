@@ -1,11 +1,11 @@
 import {NextRequest} from "next/server";
 import {openai} from "@ai-sdk/openai";
-import {CoreMessage, streamText} from "ai";
+import {CoreMessage, streamText,Message} from "ai";
 import {handleError} from "@/lib/apiErrorHandler";
 import supabase from "@/lib/supabaseClient";
 
 interface Messages {
-    messages: CoreMessage[];
+    messages: Message[];
   }
   
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         throw new Error("Chat model is not configured");
       }
       
-      const {messages}: Messages = await request.json();
+      const {messages}:Messages = await request.json();
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         throw new Error("Invalid 'messages' format or missing");
       }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         model: openai(chatModel),
         messages: messages,
       });
-  
+
       return result.toDataStreamResponse();
     } catch (error) {
       return handleError({
