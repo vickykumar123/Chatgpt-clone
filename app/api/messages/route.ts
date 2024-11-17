@@ -78,13 +78,13 @@ export async function POST(request: NextRequest) {
         } else {
             // Insert new message
             const { error: insertError } = await supabase.rpc("create_message", {
-                message_id_input: latestMessage.id,
+                message_id_input: latestMessage.messageid || latestMessage.id,
                 user_id_input: USER_ID,
-                chat_id_input: chatId,
+                chat_id_input: chatId,  // Pass chat_id_input here
                 message_content_input: latestMessage.content,
                 parent_message_id_input: parentMessage ? parentMessage.id : null,
                 created_at_input: latestMessage.createdAt || null,
-                role_input:latestMessage.role
+                role_input: latestMessage.role
             });
 
             if (insertError) {

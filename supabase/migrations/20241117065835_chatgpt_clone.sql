@@ -6,10 +6,16 @@ CREATE TABLE IF NOT EXISTS chats (
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-    messageId UUID PRIMARY KEY, -- Now provided externally
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    messageId TEXT,
     userId UUID NOT NULL,
     chatId UUID NOT NULL,
     content TEXT NOT NULL,
+    parentMessageId TEXT NULL,
+    role TEXT DEFAULT 'assistant',	
     createdAt TIMESTAMP DEFAULT now(),
     CONSTRAINT fk_chat FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE
 );
+
+
+

@@ -1,10 +1,11 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import {FiSend} from "react-icons/fi";
 import {useChat} from "ai/react";
 import useAutoResizeTextArea from "@/hooks/useAutoResizeTextArea";
 import Message from "./Message";
 import {API_URL} from "@/contants";
 import {useParams} from "next/navigation";
+import {debounce} from "lodash";
 
 const initialMessages = [
   {
@@ -35,7 +36,7 @@ const initialMessages = [
     id: "9db098d3-33cc-446c-963b-df94de69db1c",
     messageid: "UeVFn0y",
     content:
-      "I’m an AI language model created by OpenAI, designed to assist with a wide range of questions and topics. How can I help you today?",
+      "Im an AI language model created by OpenAI, designed to assist with a wide range of questions and topics. How can I help you today?",
     parentmessageid: "z5rHfwm",
     createdat: "2024-11-17T03:05:19.574",
     role: "assistant",
@@ -55,6 +56,9 @@ const Chat = () => {
   const bottomOfChatRef = useRef<HTMLDivElement>(null);
   const params = useParams();
 
+  const [structuredMessages, setStructuredMessages] = useState<any[]>([]);
+  // const [initialMessages, setInitialMessages] = useState<any[]>([]);
+
   const {
     messages,
     input,
@@ -62,49 +66,100 @@ const Chat = () => {
     handleSubmit,
     isLoading,
     error,
-    setMessages,
     reload,
   } = useChat({
     api: "/api/conversation",
     initialMessages,
   });
+
+  // Fetch initial messages
+  const getMessages = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/messages?chatId=${params.chatId}`
+      );
+      const data = await response.json();
+      // setInitialMessages(data.messages);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
+  };
+
+  // Update a specific message locally and trigger reload
+  const onUpdateMessage = (id: string, newContent: string) => {
+    setStructuredMessages((prevMessages) => {
+      const updateContent: any = (messages: any[]) =>
+        messages.map((msg) =>
+          msg.messageid === id
+            ? {...msg, content: newContent}
+            : {...msg, children: updateContent(msg.children || [])}
+        );
+      return updateContent(prevMessages);
+    });
+
+    reload(); // Re-fetch messages from the backend
+  };
+
+  // Build message hierarchy
+  const buildMessageHierarchy = (messages: any[]) => {
+    const messageMap = new Map();
+
+    // Create a map with `messageid` as the key
+    messages.forEach((msg) => {
+      messageMap.set(msg.messageid, {...msg, children: [], childLength: 0});
+    });
+
+    const result: any[] = [];
+    messages.forEach((msg) => {
+      if (msg.parentmessageid === null) {
+        result.push(messageMap.get(msg.messageid));
+      } else {
+        const parent = messageMap.get(msg.parentmessageid);
+        if (parent) {
+          parent.children.push(messageMap.get(msg.messageid));
+          parent.childLength = parent.children.length;
+        }
+      }
+    });
+
+    return result;
+  };
+
+  // Process initial messages into a hierarchy
   useEffect(() => {
+    if (initialMessages.length) {
+      const hierarchy = buildMessageHierarchy(messages);
+      setStructuredMessages(hierarchy);
+    }
+  }, [initialMessages]);
+
+  // Save new messages to the backend
+  const createMessage = async () => {
+    try {
+      await fetch(`${API_URL}/api/messages`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({messages, chatId: params.chatId}),
+      });
+    } catch (err) {
+      console.error("Error creating message:", err);
+    }
+  };
+
+  const debouncedCreateMessage = debounce(() => {
+    createMessage();
+  }, 300);
+
+  // Sync new messages to backend when `messages` updates
+  useEffect(() => {
+    if (messages.length) {
+      debouncedCreateMessage();
+    }
+
     if (bottomOfChatRef.current) {
       bottomOfChatRef.current.scrollIntoView({behavior: "smooth"});
     }
-    createMessage();
   }, [messages]);
-
-  const createMessage = async () => {
-    await fetch(`${API_URL}/api/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({messages, chatId: params.chatId}),
-    });
-  };
-
-  const onUpdateMessage = async (id: string, newContent: string) => {
-    // Update the message in the state
-    setMessages((prevMessages) => {
-      const updatedMessages = [];
-
-      for (let msg of prevMessages) {
-        if (msg.id === id) {
-          // Update the message content
-          updatedMessages.push({...msg, content: newContent});
-          break;
-        } else {
-          // Otherwise, keep the message as is
-          updatedMessages.push(msg);
-        }
-      }
-
-      return updatedMessages;
-    });
-    reload();
-  };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,12 +179,12 @@ const Chat = () => {
         <div className="flex-1 overflow-hidden">
           <div className="h-full dark:bg-gray-800">
             <div>
-              {messages.length > 0 && (
+              {structuredMessages.length > 0 && (
                 <div className="flex flex-col items-center text-sm bg-gray-800">
                   <div className="flex w-full items-center justify-center gap-1 border-b border-black/10 bg-gray-50 p-3 text-gray-500 dark:border-gray-900/50 dark:bg-gray-700 dark:text-gray-300">
                     Model: Dummy Model
                   </div>
-                  {messages.map((message, index) => (
+                  {structuredMessages.map((message, index) => (
                     <Message
                       key={index}
                       message={message}

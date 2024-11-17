@@ -2,22 +2,23 @@ import {useEffect, useRef, useState} from "react";
 import {SiOpenai} from "react-icons/si";
 import {HiUser} from "react-icons/hi";
 import {BiEdit, BiSave} from "react-icons/bi";
-import {Message as MessageType} from "ai";
 
 interface MessageProps {
-  message: MessageType;
+  message: any;
   onUpdate: (id: string, newContent: string) => void;
 }
 
 const Message = ({message, onUpdate}: MessageProps) => {
-  const {role, content: text, id} = message;
+  const {role, content, id, children, childLength} = message;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(content);
+  const [currentChildIndex, setCurrentChildIndex] = useState(0);
+
+  const editRef = useRef<HTMLDivElement>(null);
   const isUser = role === "user";
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(text);
-  const editRef = useRef<HTMLDivElement>(null);
   const handleSave = () => {
-    onUpdate(id, editText);
+    onUpdate(id, editText); // call onUpdate from parent to save
     setIsEditing(false);
   };
 
@@ -39,6 +40,16 @@ const Message = ({message, onUpdate}: MessageProps) => {
     };
   }, [isEditing]);
 
+  const handlePrevious = () => {
+    setCurrentChildIndex((prevIndex) => Math.max(0, prevIndex - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentChildIndex((prevIndex) =>
+      Math.min(childLength - 1, prevIndex + 1)
+    );
+  };
+
   return (
     <div
       className={`group w-full text-gray-800 dark:text-gray-100 border-b border-black/10 dark:border-gray-900/50 ${
@@ -58,23 +69,44 @@ const Message = ({message, onUpdate}: MessageProps) => {
               onChange={(e) => setEditText(e.target.value)}
             />
           ) : (
-            <p>{text}</p>
+            <p>{content}</p>
+          )}
+          {childLength > 1 && (
+            <div className="mt-2 flex gap-2">
+              <button
+                className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded"
+                onClick={handlePrevious}
+                disabled={currentChildIndex === 0}
+              >
+                Previous child
+              </button>
+              <button
+                className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded"
+                onClick={handleNext}
+                disabled={currentChildIndex === childLength - 1}
+              >
+                Next child
+              </button>
+            </div>
           )}
         </div>
         {isUser && (
-          <div className="flex items-center gap-2">
-            {isEditing ? (
+          <div>
+            {isEditing && isUser ? (
               <button onClick={handleSave}>
-                <BiSave className="text-green-500" />
+                <BiSave />
               </button>
             ) : (
               <button onClick={() => setIsEditing(true)}>
-                <BiEdit className="text-gray-500" />
+                <BiEdit />
               </button>
             )}
           </div>
         )}
       </div>
+      {childLength > 0 && children[currentChildIndex] && (
+        <Message message={children[currentChildIndex]} onUpdate={onUpdate} />
+      )}
     </div>
   );
 };

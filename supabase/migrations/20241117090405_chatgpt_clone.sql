@@ -1,3 +1,4 @@
+-- Function: get_messages_by_chat
 CREATE OR REPLACE FUNCTION get_messages_by_chat(
     user_id_input UUID,
     chat_id_input UUID
@@ -6,7 +7,8 @@ CREATE OR REPLACE FUNCTION get_messages_by_chat(
     messageid TEXT,
     content TEXT,
     parentMessageid TEXT,
-    createdat TIMESTAMP
+    createdat TIMESTAMP,
+    role TEXT
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -15,7 +17,8 @@ BEGIN
         messages.messageid,
         messages.content,
         messages.parentmessageid,
-        messages.createdat
+        messages.createdat,
+        messages.role
     FROM messages
     WHERE 
         messages.userid = user_id_input

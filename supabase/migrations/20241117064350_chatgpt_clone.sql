@@ -44,21 +44,27 @@ $$ LANGUAGE plpgsql;
 
 -- Function: get_messages_by_chat
 CREATE OR REPLACE FUNCTION get_messages_by_chat(
-    chat_id_input UUID,
-    user_id_input UUID
-)
-RETURNS TABLE (
-    messageid UUID,
-    userid UUID,
-    chatid UUID,
+    user_id_input UUID,
+    chat_id_input UUID
+) RETURNS TABLE (
+    id UUID,
+    messageid TEXT,
     content TEXT,
+    parentMessageid TEXT,
     createdat TIMESTAMP
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT messages.messageid, messages.userid, messages.chatid, messages.content, messages.createdat
+    SELECT 
+        messages.id,
+        messages.messageid,
+        messages.content,
+        messages.parentmessageid,
+        messages.createdat
     FROM messages
-    WHERE messages.chatid = chat_id_input AND messages.userid = user_id_input
+    WHERE 
+        messages.userid = user_id_input
+        AND messages.chatid = chat_id_input
     ORDER BY messages.createdat ASC;
 END;
 $$ LANGUAGE plpgsql;
@@ -76,5 +82,48 @@ BEGIN
     INSERT INTO chats (id, userid, title, createdat)
     VALUES (new_chat_id, user_id_input, chat_title_input, now());
     RETURN new_chat_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION create_message(
+    message_id_input TEXT,
+    user_id_input UUID,
+    chat_id_input UUID,
+    message_content_input TEXT,
+    parent_message_id_input TEXT DEFAULT NULL,
+    created_at_input TIMESTAMP DEFAULT NOW(),
+    role_input TEXT DEFAULT 'user'  -- Added a default value for role_input
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO messages (
+        messageid, userid, chatid, content, role, parentMessageid, createdat
+    ) VALUES (
+        message_id_input,
+        user_id_input,
+        chat_id_input,
+        message_content_input,
+        role_input,
+        parent_message_id_input,
+        COALESCE(created_at_input, NOW())
+    )
+    ON CONFLICT (messageid) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION update_message_content(
+    message_id TEXT,
+    new_content TEXT,
+    created_at_input TIMESTAMP DEFAULT NULL
+) RETURNS VOID AS $$
+BEGIN
+    -- Update the message content with the new content
+    UPDATE messages
+    SET content = new_content, -- Replace the content
+        createdAt = COALESCE(created_at_input, createdAt)
+    WHERE messageId = message_id;
 END;
 $$ LANGUAGE plpgsql;
