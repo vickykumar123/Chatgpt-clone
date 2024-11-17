@@ -13,7 +13,7 @@ const Message = ({message, onUpdate}: MessageProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(content);
   const [currentChildIndex, setCurrentChildIndex] = useState(0);
-
+  console.log(message);
   const editRef = useRef<HTMLDivElement>(null);
   const isUser = role === "user";
 
@@ -78,14 +78,14 @@ const Message = ({message, onUpdate}: MessageProps) => {
                 onClick={handlePrevious}
                 disabled={currentChildIndex === 0}
               >
-                Previous child
+                Previous
               </button>
               <button
                 className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded"
                 onClick={handleNext}
                 disabled={currentChildIndex === childLength - 1}
               >
-                Next child
+                Next
               </button>
             </div>
           )}
