@@ -3,20 +3,57 @@ import {FiSend} from "react-icons/fi";
 import {useChat} from "ai/react";
 import useAutoResizeTextArea from "@/hooks/useAutoResizeTextArea";
 import Message from "./Message";
+import {API_URL} from "@/contants";
+import {useParams} from "next/navigation";
 
 const initialMessages = [
-  {role: "user", content: "Hello I am cool"},
   {
-    role: "assistant",
-    content:
-      "Hello! It's great to hear that you're feeling cool. What’s on your mind today?",
+    id: "86dd4992-042d-4fc4-aeb3-24a98fd6efbf",
+    messageid: "C0iiuWz",
+    content: "Hello",
+    parentmessageid: null,
+    createdat: "2024-11-17T03:04:57.739",
+    role: "user",
   },
-  {role: "user", content: "I am angry"},
+  {
+    id: "24aa4e52-812a-4e87-bae0-6a00da329f95",
+    messageid: "7NAQl2V",
+    content: "Hello! How can I assist you today",
+    parentmessageid: "C0iiuWz",
+    createdat: "2024-11-17T03:05:00.906",
+    role: "assistant",
+  },
+  {
+    id: "1ca75caa-f781-4d17-88cc-737a947eb470",
+    messageid: "z5rHfwm",
+    content: "I am cool",
+    parentmessageid: "7NAQl2V",
+    createdat: "2024-11-17T03:05:18.367",
+    role: "user",
+  },
+  {
+    id: "9db098d3-33cc-446c-963b-df94de69db1c",
+    messageid: "UeVFn0y",
+    content:
+      "I’m an AI language model created by OpenAI, designed to assist with a wide range of questions and topics. How can I help you today?",
+    parentmessageid: "z5rHfwm",
+    createdat: "2024-11-17T03:05:19.574",
+    role: "assistant",
+  },
+  {
+    id: "6ab9b839-14a0-4a0f-810c-f46f900b5c46",
+    messageid: "5jnw5LQ",
+    content: "That's great to hear! What makes you feel cool today?",
+    parentmessageid: "z5rHfwm",
+    createdat: "2024-11-17T03:05:48.973",
+    role: "assistant",
+  },
 ];
 
 const Chat = () => {
   const textAreaRef = useAutoResizeTextArea();
   const bottomOfChatRef = useRef<HTMLDivElement>(null);
+  const params = useParams();
 
   const {
     messages,
@@ -29,14 +66,24 @@ const Chat = () => {
     reload,
   } = useChat({
     api: "/api/conversation",
-    // initialMessages,
+    initialMessages,
   });
-
   useEffect(() => {
     if (bottomOfChatRef.current) {
       bottomOfChatRef.current.scrollIntoView({behavior: "smooth"});
     }
+    createMessage();
   }, [messages]);
+
+  const createMessage = async () => {
+    await fetch(`${API_URL}/api/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({messages, chatId: params.chatId}),
+    });
+  };
 
   const onUpdateMessage = async (id: string, newContent: string) => {
     // Update the message in the state
