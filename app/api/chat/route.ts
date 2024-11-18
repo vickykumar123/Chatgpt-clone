@@ -1,19 +1,12 @@
 import {NextRequest, NextResponse} from "next/server";
 import {handleError} from "@/lib/apiErrorHandler";
-import supabase from "@/lib/supabaseClient";
-import { USER_ID } from "@/contants";
+import { createChat } from "@/lib/functions/chats/createChat";
+import { getChatsByUser } from "@/lib/functions/chats/getChatsByUser";
 
 
 export async function GET(){
   try {
-    const { data, error } = await supabase.rpc('get_chats_by_user', {
-      user_id_input: USER_ID,
-  });
-
-  if(error){
-    throw error
-  }
-
+    const data = await getChatsByUser()
   return NextResponse.json(data)
   } catch (error) {
     return handleError({
@@ -34,15 +27,7 @@ export async function POST(request: NextRequest) {
         statusCode:400
       })
     }
-    const { data, error } = await supabase.rpc('create_chat', {
-      user_id_input: USER_ID,
-      chat_title_input: chatTitle,
-  });
-
-  if(error){
-    throw error
-  }
-
+   const data = createChat(chatTitle)
 return NextResponse.json({chatId:data})
 
   } catch (error) {

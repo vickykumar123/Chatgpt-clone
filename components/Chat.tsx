@@ -1,18 +1,21 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {FiSend} from "react-icons/fi";
 import {useChat} from "ai/react";
 import useAutoResizeTextArea from "@/hooks/useAutoResizeTextArea";
 import Message from "./Message";
-import {API_URL} from "@/contants";
-import {useParams, useRouter} from "next/navigation";
+import {useParams} from "next/navigation";
 import {debounce} from "lodash";
+import {createChatMessage, fetchChatMessages} from "@/lib/query/messages";
+import {createMessageHierarchy} from "@/lib/createMessageHierarchy";
 
 const Chat = () => {
   const textAreaRef = useAutoResizeTextArea();
   const bottomOfChatRef = useRef<HTMLDivElement>(null);
   const params = useParams();
-  const router = useRouter();
   const [structuredMessages, setStructuredMessages] = useState([]);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const {
     input,
     handleInputChange,
@@ -25,69 +28,68 @@ const Chat = () => {
   } = useChat({
     api: "/api/conversation",
     initialMessages: [],
+    onFinish(message, options) {
+      // Only fetch messages if new data is expected
+      setTimeout(fetchMessages, 2000);
+    },
   });
-  // Create a hierarchical structure from the flat messages
-  const createMessageHierarchy = () => {
-    const messageMap: any = {};
-    const roots: any = [];
-
-    // Map all messages by ID
-    messages.forEach((msg) => {
-      messageMap[msg.id] = {...msg, children: []};
-    });
-
-    // Build relationships
-    messages.forEach((msg: any) => {
-      if (msg.parentId) {
-        messageMap[msg.parentId]?.children.push(messageMap[msg.id]);
-      } else {
-        roots.push(messageMap[msg.id]);
-      }
-    });
-
-    setStructuredMessages(roots);
-  };
 
   const fetchMessages = async () => {
-    const response = await fetch(
-      `${API_URL}/api/messages?chatId=${params.chatId}`
-    );
-    const data = await response.json();
-    setMessages(data.messages); // Save flat messages to state
+    try {
+      const data = await fetchChatMessages(params.chatId as string);
+      setMessages(data);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
   };
-  // Debounced createMessage function
+
   const createMessage = debounce(async () => {
-    console.log(messages);
-    await fetch(`${API_URL}/api/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({messages, chatId: params.chatId}),
-    });
-  }, 300);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      await createChatMessage(
+        params.chatId as string,
+        messages,
+        abortController.signal
+      );
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error("Error in createMessage:", error);
+      }
+    }
+  }, 500);
 
   useEffect(() => {
-    fetchMessages();
+    const initialize = async () => {
+      await fetchMessages();
+      setIsFirstLoad(false);
+    };
+    initialize();
   }, []);
 
   useEffect(() => {
     if (messages.length > 0) {
-      createMessageHierarchy();
+      createMessageHierarchy(messages as any, setStructuredMessages);
     }
   }, [messages]);
 
   useEffect(() => {
-    if (bottomOfChatRef.current) {
-      bottomOfChatRef.current.scrollIntoView({behavior: "smooth"});
+    if (!isFirstLoad) {
+      createMessage();
     }
-    router.refresh();
-    createMessage();
+    // Smooth scrolling debounced to avoid multiple triggers
+    const scrollToBottom = debounce(() => {
+      bottomOfChatRef.current?.scrollIntoView({behavior: "smooth"});
+    }, 100);
+    scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async (e: React.FormEvent) => {
+  const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    await fetchMessages();
     handleSubmit(e);
   };
 
@@ -141,7 +143,7 @@ const Chat = () => {
             </div>
           </div>
         </div>
-        <div className=" bottom-0 left-0 w-full border-t dark:border-white/20 bg-white dark:bg-gray-800 pt-2">
+        <div className="bottom-0 left-0 w-full border-t dark:border-white/20 bg-white dark:bg-gray-800 pt-2">
           <form
             className="flex flex-row gap-3 last:mb-2 mx-2 md:mx-4"
             onSubmit={sendMessage}

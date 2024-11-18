@@ -1,47 +1,22 @@
-import {useEffect, useRef, useState} from "react";
 import {SiOpenai} from "react-icons/si";
 import {HiUser} from "react-icons/hi";
 import {BiEdit, BiSave} from "react-icons/bi";
+import {useEditableMessage} from "@/hooks/useEditableMessage"; // Import the custom hook
+import {useState} from "react";
 
 interface MessageProps {
   message: any;
-  onUpdate?: (id: string, newContent: string) => void; // Update function
+  onUpdate?: (id: string, newContent: string) => void;
 }
 
 const Message = ({message, onUpdate}: MessageProps) => {
   const {role, content, id, children = []} = message; // Default children to an empty array
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(content);
-  const [currentChildIndex, setCurrentChildIndex] = useState(0); // Track navigation within children
-  const editRef = useRef<HTMLDivElement>(null);
   const isUser = role === "user";
 
-  console.log(children);
+  const {isEditing, editText, editRef, setEditText, setIsEditing, handleSave} =
+    useEditableMessage({content, id, onUpdate});
 
-  const handleSave = () => {
-    if (onUpdate) {
-      onUpdate(id, editText); // Call the onUpdate function to update the message
-    }
-    setIsEditing(false);
-  };
-
-  const handleClickOutside = (event: MouseEvent) => {
-    if (editRef.current && !editRef.current.contains(event.target as Node)) {
-      setIsEditing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isEditing) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isEditing]);
+  const [currentChildIndex, setCurrentChildIndex] = useState(0);
 
   const handlePrevious = () => {
     setCurrentChildIndex((prevIndex) => Math.max(0, prevIndex - 1));
@@ -88,6 +63,7 @@ const Message = ({message, onUpdate}: MessageProps) => {
             >
               Previous
             </button>
+            {currentChildIndex + 1} / {children.length}
             <button
               onClick={handleNext}
               disabled={currentChildIndex === children.length - 1}
@@ -123,7 +99,6 @@ const Message = ({message, onUpdate}: MessageProps) => {
             message={children[currentChildIndex]}
             onUpdate={onUpdate} // Pass the update handler to the child
           />
-          {/* Show navigation only if there are more than 1 child messages */}
         </div>
       )}
     </div>

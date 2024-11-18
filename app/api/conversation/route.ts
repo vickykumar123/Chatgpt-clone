@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       return result.toDataStreamResponse();
     } catch (error) {
       return handleError({
-        customErrorMessage: "[CHATBOT_ERROR]",
+        customErrorMessage: "[CONVERSATION_ERROR]",
         error: error as Error,
       });
     }
