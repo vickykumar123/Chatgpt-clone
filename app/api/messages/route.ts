@@ -25,12 +25,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        
         const responseData = messages.map((data:any)=>{
             return {
                 id: data.messageid,
             createdAt: data.createdat,
             role:data.role,
-            content:data.content
+            content:data.content,
+            parentId: data.parentmessageid
             }
         })
 
@@ -43,7 +45,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     const { messages, chatId } = await request.json();
-    console.log(messages)
     // Return early if no messages
     if (!messages || messages.length === 0) {
         return NextResponse.json({ message: "No messages to process" });
@@ -55,8 +56,7 @@ export async function POST(request: NextRequest) {
     const latestMessage = messages[messages.length - 1];
     const parentMessage = messages.length > 1 ? messages[messages.length - 2] : null;
 
-    // console.log("---ParentMessage---\n",parentMessage)
-    // console.log("---LatestMessage----", latestMessage);
+  
 
     try {
         // Check if the message already exists
@@ -73,7 +73,6 @@ export async function POST(request: NextRequest) {
 
         if (existingMessage) {
             // Update message content if it already exists
-            console.log("came for the update")
             const { error: updateError } = await supabase.rpc("update_message_content", {
                 message_id: existingMessage.messageid,
                 new_content: latestMessage.content,

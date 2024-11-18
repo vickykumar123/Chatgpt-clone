@@ -5,20 +5,23 @@ import {BiEdit, BiSave} from "react-icons/bi";
 
 interface MessageProps {
   message: any;
-  onUpdate: (id: string, newContent: string) => void;
+  onUpdate?: (id: string, newContent: string) => void; // Update function
 }
 
 const Message = ({message, onUpdate}: MessageProps) => {
-  const {role, content, id, children, childLength} = message;
+  const {role, content, id, children = []} = message; // Default children to an empty array
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(content);
-  const [currentChildIndex, setCurrentChildIndex] = useState(0);
-  console.log(message);
+  const [currentChildIndex, setCurrentChildIndex] = useState(0); // Track navigation within children
   const editRef = useRef<HTMLDivElement>(null);
   const isUser = role === "user";
 
+  console.log(children);
+
   const handleSave = () => {
-    onUpdate(id, editText); // call onUpdate from parent to save
+    if (onUpdate) {
+      onUpdate(id, editText); // Call the onUpdate function to update the message
+    }
     setIsEditing(false);
   };
 
@@ -46,7 +49,7 @@ const Message = ({message, onUpdate}: MessageProps) => {
 
   const handleNext = () => {
     setCurrentChildIndex((prevIndex) =>
-      Math.min(childLength - 1, prevIndex + 1)
+      Math.min(children.length - 1, prevIndex + 1)
     );
   };
 
@@ -71,28 +74,36 @@ const Message = ({message, onUpdate}: MessageProps) => {
           ) : (
             <p>{content}</p>
           )}
-          {childLength > 1 && (
-            <div className="mt-2 flex gap-2">
-              <button
-                className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded"
-                onClick={handlePrevious}
-                disabled={currentChildIndex === 0}
-              >
-                Previous
-              </button>
-              <button
-                className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded"
-                onClick={handleNext}
-                disabled={currentChildIndex === childLength - 1}
-              >
-                Next
-              </button>
-            </div>
-          )}
         </div>
+        {children.length > 1 && (
+          <div className="flex justify-between mt-2 space-x-2">
+            <button
+              onClick={handlePrevious}
+              disabled={currentChildIndex === 0}
+              className={`px-3 py-1 rounded ${
+                currentChildIndex === 0
+                  ? "bg-gray-300 text-gray-600"
+                  : "bg-blue-500 text-white"
+              }`}
+            >
+              Previous
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={currentChildIndex === children.length - 1}
+              className={`px-3 py-1 rounded ${
+                currentChildIndex === children.length - 1
+                  ? "bg-gray-300 text-gray-600"
+                  : "bg-blue-500 text-white"
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
         {isUser && (
           <div>
-            {isEditing && isUser ? (
+            {isEditing ? (
               <button onClick={handleSave}>
                 <BiSave />
               </button>
@@ -104,8 +115,16 @@ const Message = ({message, onUpdate}: MessageProps) => {
           </div>
         )}
       </div>
-      {childLength > 0 && children[currentChildIndex] && (
-        <Message message={children[currentChildIndex]} onUpdate={onUpdate} />
+
+      {/* Recursive child rendering */}
+      {children.length > 0 && (
+        <div className="" key={message.id}>
+          <Message
+            message={children[currentChildIndex]}
+            onUpdate={onUpdate} // Pass the update handler to the child
+          />
+          {/* Show navigation only if there are more than 1 child messages */}
+        </div>
       )}
     </div>
   );

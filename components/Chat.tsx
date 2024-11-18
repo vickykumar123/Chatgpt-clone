@@ -1,88 +1,93 @@
-import {useEffect, useRef, useState, useCallback} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {FiSend} from "react-icons/fi";
 import {useChat} from "ai/react";
 import useAutoResizeTextArea from "@/hooks/useAutoResizeTextArea";
 import Message from "./Message";
 import {API_URL} from "@/contants";
-import {useParams} from "next/navigation";
-import debounce from "lodash/debounce";
+import {useParams, useRouter} from "next/navigation";
+import {debounce} from "lodash";
 
 const Chat = () => {
   const textAreaRef = useAutoResizeTextArea();
   const bottomOfChatRef = useRef<HTMLDivElement>(null);
   const params = useParams();
-  const [initialMessages, setInitialMessages] = useState([]);
-
-  console.log(initialMessages);
-
-  async function getMessages() {
-    const response = await fetch(
-      `${API_URL}/api/messages?chatId=${params.chatId}`
-    );
-
-    const data = await response.json();
-    setInitialMessages(data.messages);
-  }
-
-  useEffect(() => {
-    getMessages();
-  }, []);
-
+  const router = useRouter();
+  const [structuredMessages, setStructuredMessages] = useState([]);
   const {
-    messages,
     input,
     handleInputChange,
     handleSubmit,
     isLoading,
     error,
     setMessages,
+    messages,
     reload,
   } = useChat({
     api: "/api/conversation",
-    initialMessages,
+    initialMessages: [],
   });
+  // Create a hierarchical structure from the flat messages
+  const createMessageHierarchy = () => {
+    const messageMap: any = {};
+    const roots: any = [];
 
+    // Map all messages by ID
+    messages.forEach((msg) => {
+      messageMap[msg.id] = {...msg, children: []};
+    });
+
+    // Build relationships
+    messages.forEach((msg: any) => {
+      if (msg.parentId) {
+        messageMap[msg.parentId]?.children.push(messageMap[msg.id]);
+      } else {
+        roots.push(messageMap[msg.id]);
+      }
+    });
+
+    setStructuredMessages(roots);
+  };
+
+  const fetchMessages = async () => {
+    const response = await fetch(
+      `${API_URL}/api/messages?chatId=${params.chatId}`
+    );
+    const data = await response.json();
+    setMessages(data.messages); // Save flat messages to state
+  };
   // Debounced createMessage function
-  const createMessage = useCallback(
-    debounce(async () => {
-      console.log(messages);
-      await fetch(`${API_URL}/api/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({messages, chatId: params.chatId}),
-      });
-    }, 500),
-    [messages, params.chatId]
-  );
+  const createMessage = debounce(async () => {
+    console.log(messages);
+    await fetch(`${API_URL}/api/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({messages, chatId: params.chatId}),
+    });
+  }, 300);
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      createMessageHierarchy();
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (bottomOfChatRef.current) {
       bottomOfChatRef.current.scrollIntoView({behavior: "smooth"});
     }
+    router.refresh();
     createMessage();
-  }, [messages, createMessage]);
-
-  const onUpdateMessage = async (id: string, newContent: string) => {
-    // Update the message in the state
-    setMessages((prevMessages) => {
-      const updatedMessages = [...prevMessages]; // Create a copy of the array
-
-      for (let i = 0; i < updatedMessages.length; i++) {
-        if (updatedMessages[i].id === id) {
-          updatedMessages[i] = {...updatedMessages[i], content: newContent};
-          break; // Exit the loop after the update
-        }
-      }
-
-      return updatedMessages; // Return the updated array
-    });
-    reload();
-  };
+  }, [messages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    await fetchMessages();
     handleSubmit(e);
   };
 
@@ -93,18 +98,37 @@ const Chat = () => {
     }
   };
 
+  const onUpdateMessage = async (id: string, newContent: string) => {
+    // Update the message in the state
+    setMessages((prevMessages) => {
+      const updatedMessages = [];
+      for (let msg of prevMessages) {
+        if (msg.id === id) {
+          // Update the message content
+          updatedMessages.push({...msg, content: newContent});
+          break;
+        } else {
+          // Otherwise, keep the message as is
+          updatedMessages.push(msg);
+        }
+      }
+      return updatedMessages;
+    });
+    reload();
+  };
+
   return (
     <div className="flex max-w-full flex-1 flex-col">
       <div className="relative h-full w-full transition-width flex flex-col items-stretch flex-1">
-        <div className="flex-1 overflow-scroll">
-          <div className="h-full dark:bg-gray-800">
+        <div className="flex-1 overflow-scroll overflow-x-hidden">
+          <div className="h-svh dark:bg-gray-800">
             <div>
-              {messages.length > 0 && (
+              {structuredMessages.length > 0 && (
                 <div className="flex flex-col items-center text-sm bg-gray-800">
                   <div className="flex w-full items-center justify-center gap-1 border-b border-black/10 bg-gray-50 p-3 text-gray-500 dark:border-gray-900/50 dark:bg-gray-700 dark:text-gray-300">
                     Model: Dummy Model
                   </div>
-                  {messages.map((message) => (
+                  {structuredMessages.map((message: any) => (
                     <Message
                       key={message.id}
                       message={message}
@@ -117,7 +141,7 @@ const Chat = () => {
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 w-full border-t dark:border-white/20 bg-white dark:bg-gray-800 pt-2">
+        <div className=" bottom-0 left-0 w-full border-t dark:border-white/20 bg-white dark:bg-gray-800 pt-2">
           <form
             className="flex flex-row gap-3 last:mb-2 mx-2 md:mx-4"
             onSubmit={sendMessage}
