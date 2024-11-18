@@ -1,8 +1,9 @@
 import {SiOpenai} from "react-icons/si";
 import {HiUser} from "react-icons/hi";
 import {BiEdit, BiSave} from "react-icons/bi";
-import {useEditableMessage} from "@/hooks/useEditableMessage"; // Import the custom hook
+import {useEditableMessage} from "@/hooks/useEditableMessage";
 import {useState} from "react";
+import {FaChevronLeft, FaChevronRight} from "react-icons/fa";
 
 interface MessageProps {
   message: any;
@@ -55,25 +56,27 @@ const Message = ({message, onUpdate}: MessageProps) => {
             <button
               onClick={handlePrevious}
               disabled={currentChildIndex === 0}
-              className={`px-3 py-1 rounded ${
+              className={`px-1 py-1 rounded ${
                 currentChildIndex === 0
                   ? "bg-gray-300 text-gray-600"
                   : "bg-blue-500 text-white"
               }`}
             >
-              Previous
+              <FaChevronLeft />
             </button>
-            {currentChildIndex + 1} / {children.length}
+            <samp>
+              {currentChildIndex + 1} / {children.length}
+            </samp>
             <button
               onClick={handleNext}
               disabled={currentChildIndex === children.length - 1}
-              className={`px-3 py-1 rounded ${
+              className={`px-1 py-1 rounded ${
                 currentChildIndex === children.length - 1
                   ? "bg-gray-300 text-gray-600"
                   : "bg-blue-500 text-white"
               }`}
             >
-              Next
+              <FaChevronRight />
             </button>
           </div>
         )}
