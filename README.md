@@ -11,7 +11,7 @@
 
 # API Endpoints
 
-```
+
 1. GET /api/chat
 Description: Returns all chats of the user.
 2. POST /api/chat
@@ -45,9 +45,10 @@ Request Body:
 }
 
 ```
-1. POST /api/conversation
+3. POST /api/conversation
 Description: Sends a message and gets the AI response in a stream.
 Request Body:
+```
 {
 "content": "string",
 "role": "system | user | assistant | function | data | tool"
