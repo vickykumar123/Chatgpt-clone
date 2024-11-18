@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         statusCode:400
       })
     }
-   const data = createChat(chatTitle)
+   const data =await  createChat(chatTitle)
 return NextResponse.json({chatId:data})
 
   } catch (error) {
